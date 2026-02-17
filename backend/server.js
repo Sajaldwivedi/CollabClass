@@ -14,10 +14,14 @@ app.use(express.json());
 // Import Routes
 const authRoutes = require("./routes/authRoutes");
 const assignmentRoutes = require("./routes/assignmentRoutes");
+const submissionRoutes = require("./routes/submissionRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 // Use Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.get("/", (req, res) => {
   res.send("CollabClass API Running...");

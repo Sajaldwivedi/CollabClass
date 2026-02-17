@@ -22,6 +22,14 @@ const assignmentSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+
+    // 🔥 NEW FIELD
+    status: {
+      type: String,
+      enum: ["open", "closed", "expired"],
+      default: "open",
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
