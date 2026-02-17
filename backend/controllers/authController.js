@@ -1,10 +1,13 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
+const { OAuth2Client } = require("google-auth-library");
 
-// @desc    Register User
-// @route   POST /api/auth/register
-// @access  Public
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ===============================
+// Register User
+// ===============================
 const registerUser = async (req, res) => {
   try {
     const { name, email, password, role, section } = req.body;
@@ -14,9 +17,15 @@ const registerUser = async (req, res) => {
     }
 
     const userExists = await User.findOne({ email });
-
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
+    }
+
+    let isUniversityUser = false;
+    let regNo = null;
+
+    if (email.endsWith("@srmap.edu.in")) {
+      isUniversityUser = true;
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -28,45 +37,108 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       role,
       section,
+      regNo,
+      isUniversityUser,
     });
 
-    if (user) {
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id),
-      });
-    }
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isUniversityUser: user.isUniversityUser,
+      regNo: user.regNo,
+      token: generateToken(user._id),
+    });
+
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-// @desc    Login User
-// @route   POST /api/auth/login
-// @access  Public
+// ===============================
+// Login User
+// ===============================
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-      res.json({
+    if (user && user.password !== "google-auth" && await bcrypt.compare(password, user.password)) {
+      return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        isUniversityUser: user.isUniversityUser,
+        regNo: user.regNo,
         token: generateToken(user._id),
       });
-    } else {
-      res.status(401).json({ message: "Invalid email or password" });
     }
+
+    return res.status(401).json({ message: "Invalid email or password" });
+
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-module.exports = { registerUser, loginUser };
+// ===============================
+// Google Authentication
+// ===============================
+const googleAuth = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { name, email } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+
+    let isUniversityUser = false;
+    let regNo = null;
+
+    if (email.endsWith("@srmap.edu.in")) {
+      isUniversityUser = true;
+
+      if (name.includes("|")) {
+        regNo = name.split("|")[1].trim();
+      }
+    }
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        password: "google-auth",
+        role: "student",
+        regNo,
+        isUniversityUser,
+      });
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isUniversityUser: user.isUniversityUser,
+      regNo: user.regNo,
+      token: generateToken(user._id),
+    });
+
+  } catch (error) {
+    res.status(401).json({ message: "Google authentication failed" });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  googleAuth,
+};

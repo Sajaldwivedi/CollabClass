@@ -28,6 +28,16 @@ const userSchema = new mongoose.Schema(
         type: String,
       },
     ],
+
+    // ✅ NEW FIELDS
+    regNo: {
+      type: String,
+    },
+
+    isUniversityUser: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
