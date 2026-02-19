@@ -16,6 +16,10 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isLate: {
+      type: Boolean,
+      default: false,
+    },
     marks: {
       type: Number,
       default: null,

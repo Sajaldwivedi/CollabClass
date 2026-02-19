@@ -1,5 +1,6 @@
 const Assignment = require("../models/Assignment");
 const Submission = require("../models/Submission");
+const User = require("../models/User");
 
 // ===============================
 // Create Assignment (Teacher Only)
@@ -118,11 +119,31 @@ const getAssignmentAnalytics = async (req, res) => {
       marks: { $ne: null },
     });
 
+    const pendingGrading = totalSubmissions - gradedSubmissions;
+
+    const lateSubmissions = await Submission.countDocuments({
+      assignment: assignment._id,
+      isLate: true,
+    });
+
+    // 🎯 Total students in this section
+    const totalStudentsInSection = await User.countDocuments({
+      role: "student",
+      section: assignment.section,
+    });
+
+    const submissionRate =
+      totalStudentsInSection > 0
+        ? (totalSubmissions / totalStudentsInSection) * 100
+        : 0;
+
     res.json({
       assignmentId: assignment._id,
       totalSubmissions,
       gradedSubmissions,
-      pendingGrading: totalSubmissions - gradedSubmissions,
+      pendingGrading,
+      lateSubmissions,
+      submissionRate: Number(submissionRate.toFixed(2)),
       status: assignment.status,
     });
 
@@ -130,6 +151,7 @@ const getAssignmentAnalytics = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 module.exports = {
   createAssignment,

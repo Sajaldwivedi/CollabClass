@@ -4,29 +4,46 @@ const User = require("../models/User");
 
 const getTeacherDashboard = async (req, res) => {
   try {
-    // Only teachers
+    // Ensure teacher
     if (req.user.role !== "teacher") {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const totalAssignments = await Assignment.countDocuments({
+    // 1️⃣ Get teacher's assignments
+    const teacherAssignments = await Assignment.find({
       createdBy: req.user._id,
-    });
+    }).select("_id section");
 
+    const assignmentIds = teacherAssignments.map(a => a._id);
+
+    // 2️⃣ Count assignments
+    const totalAssignments = assignmentIds.length;
+
+    // 3️⃣ Count students (optional: could scope by section later)
     const totalStudents = await User.countDocuments({
       role: "student",
     });
 
-    const totalSubmissions = await Submission.countDocuments();
+    // 4️⃣ Submissions only for teacher's assignments
+    const totalSubmissions = await Submission.countDocuments({
+      assignment: { $in: assignmentIds },
+    });
 
     const gradedSubmissions = await Submission.countDocuments({
+      assignment: { $in: assignmentIds },
       marks: { $ne: null },
     });
 
     const pendingGrading = totalSubmissions - gradedSubmissions;
 
+    // 5️⃣ Average marks (teacher scoped)
     const averageMarksData = await Submission.aggregate([
-      { $match: { marks: { $ne: null } } },
+      {
+        $match: {
+          assignment: { $in: assignmentIds },
+          marks: { $ne: null },
+        },
+      },
       {
         $group: {
           _id: null,
@@ -40,12 +57,19 @@ const getTeacherDashboard = async (req, res) => {
         ? averageMarksData[0].avgMarks
         : 0;
 
+    // 6️⃣ Late submissions count (if you added isLate field)
+    const lateSubmissions = await Submission.countDocuments({
+      assignment: { $in: assignmentIds },
+      isLate: true,
+    });
+
     res.json({
       totalAssignments,
       totalStudents,
       totalSubmissions,
       gradedSubmissions,
       pendingGrading,
+      lateSubmissions,
       averageMarks: Number(averageMarks.toFixed(2)),
     });
 
