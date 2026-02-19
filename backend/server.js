@@ -16,12 +16,16 @@ const authRoutes = require("./routes/authRoutes");
 const assignmentRoutes = require("./routes/assignmentRoutes");
 const submissionRoutes = require("./routes/submissionRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const studyMaterialRoutes = require("./routes/studyMaterialRoutes");
+
 
 // Use Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/materials", studyMaterialRoutes);
+
 
 app.get("/", (req, res) => {
   res.send("CollabClass API Running...");

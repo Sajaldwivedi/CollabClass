@@ -23,6 +23,7 @@ const createAssignment = async (req, res) => {
     });
 
     res.status(201).json(assignment);
+
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
@@ -31,13 +32,21 @@ const createAssignment = async (req, res) => {
 // ===============================
 // Get All Assignments
 // ===============================
+// ===============================
+// Get All Assignments (Filtered + Sorted)
+// ===============================
 const getAssignments = async (req, res) => {
   try {
-    const assignments = await Assignment.find();
+    const { status, sort } = req.query;
+
+    let filter = {};
+    let sortOption = {};
 
     const now = new Date();
 
-    // Auto-expire open assignments
+    // Auto-expire logic
+    const assignments = await Assignment.find();
+
     for (let assignment of assignments) {
       if (
         assignment.status === "open" &&
@@ -48,18 +57,32 @@ const getAssignments = async (req, res) => {
       }
     }
 
-    if (req.user.role === "student") {
-      return res.json(
-        assignments.filter(a => a.section === req.user.section)
-      );
+    // Status filter
+    if (status) {
+      filter.status = status;
     }
 
-    res.json(assignments);
+    // Student section filtering
+    if (req.user.role === "student") {
+      filter.section = req.user.section;
+    }
+
+    // Sorting options
+    if (sort === "deadline") {
+      sortOption.deadline = 1; // earliest first
+    } else if (sort === "createdAt") {
+      sortOption.createdAt = -1; // newest first
+    }
+
+    const filteredAssignments = await Assignment.find(filter).sort(sortOption);
+
+    res.json(filteredAssignments);
 
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 // ===============================
 // Get Single Assignment
@@ -73,6 +96,7 @@ const getAssignmentById = async (req, res) => {
     }
 
     res.json(assignment);
+
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
@@ -126,7 +150,6 @@ const getAssignmentAnalytics = async (req, res) => {
       isLate: true,
     });
 
-    // 🎯 Total students in this section
     const totalStudentsInSection = await User.countDocuments({
       role: "student",
       section: assignment.section,
@@ -137,6 +160,21 @@ const getAssignmentAnalytics = async (req, res) => {
         ? (totalSubmissions / totalStudentsInSection) * 100
         : 0;
 
+    // 🏆 Highest marks
+    const highestSubmission = await Submission.findOne({
+      assignment: assignment._id,
+      marks: { $ne: null },
+    })
+      .sort({ marks: -1 })
+      .populate("student", "name email");
+
+    // 📉 Lowest marks
+    const lowestSubmission = await Submission.findOne({
+      assignment: assignment._id,
+      marks: { $ne: null },
+    })
+      .sort({ marks: 1 });
+
     res.json({
       assignmentId: assignment._id,
       totalSubmissions,
@@ -145,12 +183,17 @@ const getAssignmentAnalytics = async (req, res) => {
       lateSubmissions,
       submissionRate: Number(submissionRate.toFixed(2)),
       status: assignment.status,
+
+      highestMarks: highestSubmission ? highestSubmission.marks : null,
+      lowestMarks: lowestSubmission ? lowestSubmission.marks : null,
+      topStudent: highestSubmission ? highestSubmission.student : null,
     });
 
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 
 module.exports = {

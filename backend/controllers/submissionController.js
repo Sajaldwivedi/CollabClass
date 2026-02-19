@@ -66,18 +66,41 @@ const submitAssignment = async (req, res) => {
 // ===============================
 // Teacher views submissions
 // ===============================
+// ===============================
+// Teacher views submissions (Paginated)
+// ===============================
 const getSubmissions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    const totalSubmissions = await Submission.countDocuments({
+      assignment: req.params.assignmentId,
+    });
+
     const submissions = await Submission.find({
       assignment: req.params.assignmentId,
-    }).populate("student", "name email");
+    })
+      .populate("student", "name email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json(submissions);
+    const totalPages = Math.ceil(totalSubmissions / limit);
+
+    res.json({
+      submissions,
+      currentPage: page,
+      totalPages,
+      totalSubmissions,
+    });
 
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 // ===============================
 // Teacher grades submission
