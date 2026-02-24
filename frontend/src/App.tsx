@@ -17,8 +17,8 @@ const StudentDashboardPage = React.lazy(() =>
   }))
 );
 const DoubtDiscussionPage = React.lazy(() =>
-  import("./pages/shared/DoubtDiscussionPage").then((m) => ({
-    default: m.DoubtDiscussionPage
+  import("./pages/shared/DoubtDiscussionPage2").then((m) => ({
+    default: m.DoubtDiscussionPage2
   }))
 );
 
