@@ -13,6 +13,72 @@ const riskFromStrength = (strengthScore) => {
 };
 
 /**
+ * Build a subject -> [ { studentId, avgMarks, strengthScore } ] map for a section.
+ * strengthScore here is derived from avgMarks (0–100), computed dynamically via aggregation.
+ */
+async function buildSubjectStrengthMap(section) {
+  const rows = await Submission.aggregate([
+    {
+      $lookup: {
+        from: "assignments",
+        localField: "assignment",
+        foreignField: "_id",
+        as: "assignmentDoc",
+      },
+    },
+    { $unwind: "$assignmentDoc" },
+    { $match: { "assignmentDoc.section": section } },
+    {
+      $group: {
+        _id: {
+          subject: "$assignmentDoc.subject",
+          studentId: "$student",
+        },
+        avgMarks: { $avg: "$marks" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        subject: "$_id.subject",
+        studentId: "$_id.studentId",
+        avgMarks: { $ifNull: ["$avgMarks", 0] },
+        strengthScore: {
+          $let: {
+            vars: { m: { $ifNull: ["$avgMarks", 0] } },
+            in: { $min: [100, { $max: [0, "$$m"] }] },
+          },
+        },
+      },
+    },
+    { $sort: { subject: 1, strengthScore: -1 } },
+    {
+      $group: {
+        _id: "$subject",
+        students: {
+          $push: {
+            studentId: "$studentId",
+            avgMarks: "$avgMarks",
+            strengthScore: "$strengthScore",
+          },
+        },
+      },
+    },
+    { $project: { _id: 0, subject: "$_id", students: 1 } },
+  ]);
+
+  const map = {};
+  for (const r of rows) {
+    map[r.subject] = (r.students || []).map((s) => ({
+      studentId: String(s.studentId),
+      avgMarks: Math.round(Number(s.avgMarks || 0) * 100) / 100,
+      strengthScore: Math.round(Number(s.strengthScore || 0) * 100) / 100,
+    }));
+  }
+  return map;
+}
+
+/**
  * Section-scoped per-student risk rollup used by teacher analytics endpoints.
  *
  * Aggregation strategy (no N+1):
@@ -299,6 +365,180 @@ const getStudentStrength = async (req, res) => {
   } catch (err) {
     console.error("getStudentStrength error:", err);
     res.status(500).json({ message: "Failed to compute student strength analytics" });
+  }
+};
+
+/**
+ * GET /api/analytics/peer-suggestions?subject=DBMS
+ * Teacher-only. Section-scoped. Suggests strong students to help weak students in a subject.
+ */
+const getPeerSuggestions = async (req, res) => {
+  try {
+    const teacherSection = req.user.section;
+    if (!teacherSection) {
+      return res.status(403).json({ message: "Section not assigned; access denied" });
+    }
+
+    const subject = String(req.query.subject || "").trim();
+    if (!subject) {
+      return res.status(400).json({ message: "subject query param is required" });
+    }
+
+    const [subjectMap, riskRollup, subjectTrendRows] = await Promise.all([
+      buildSubjectStrengthMap(teacherSection),
+      buildSectionRiskRollup(teacherSection),
+      // Subject-specific trend (single aggregation; no per-student queries)
+      Submission.aggregate([
+        {
+          $lookup: {
+            from: "assignments",
+            localField: "assignment",
+            foreignField: "_id",
+            as: "assignmentDoc",
+          },
+        },
+        { $unwind: "$assignmentDoc" },
+        { $match: { "assignmentDoc.section": teacherSection, "assignmentDoc.subject": subject } },
+        {
+          $group: {
+            _id: {
+              studentId: "$student",
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            avgMarks: { $avg: "$marks" },
+            totalSubmissions: { $sum: 1 },
+            lateCount: { $sum: { $cond: ["$isLate", 1, 0] } },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            studentId: "$_id.studentId",
+            year: "$_id.year",
+            month: "$_id.month",
+            avgMarks: { $ifNull: ["$avgMarks", 0] },
+            lateRatio: {
+              $cond: [
+                { $gt: ["$totalSubmissions", 0] },
+                { $multiply: [{ $divide: ["$lateCount", "$totalSubmissions"] }, 100] },
+                0,
+              ],
+            },
+          },
+        },
+        {
+          $addFields: {
+            strengthScore: {
+              $let: {
+                vars: {
+                  marks: { $min: [100, { $max: [0, "$avgMarks"] }] },
+                  late: { $min: [100, { $max: [0, "$lateRatio"] }] },
+                },
+                in: {
+                  $min: [
+                    100,
+                    {
+                      $max: [
+                        0,
+                        {
+                          $subtract: [
+                            { $multiply: ["$$marks", 0.7] },
+                            { $multiply: ["$$late", 0.3] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        { $sort: { studentId: 1, year: 1, month: 1 } },
+        {
+          $group: {
+            _id: "$studentId",
+            months: {
+              $push: { year: "$year", month: "$month", strengthScore: "$strengthScore" },
+            },
+          },
+        },
+        { $project: { _id: 0, studentId: "$_id", lastTwo: { $slice: ["$months", -2] } } },
+      ]),
+    ]);
+
+    const subjectList = subjectMap[subject] || [];
+
+    // Map studentId -> subject strength score for this subject
+    const subjectStrengthByStudent = new Map(
+      subjectList.map((s) => [String(s.studentId), Number(s.strengthScore) || 0])
+    );
+
+    // Declining trend map for subject based on last 2 months
+    const decliningByStudent = new Map();
+    for (const row of subjectTrendRows) {
+      const sid = String(row.studentId);
+      const lastTwo = row.lastTwo || [];
+      let isDeclining = false;
+      if (lastTwo.length >= 2) {
+        const previous = Number(lastTwo[lastTwo.length - 2].strengthScore) || 0;
+        const current = Number(lastTwo[lastTwo.length - 1].strengthScore) || 0;
+        if (previous !== 0) {
+          const pct = ((current - previous) / previous) * 100;
+          if (pct <= -20) isDeclining = true;
+        }
+      }
+      decliningByStudent.set(sid, isDeclining);
+    }
+
+    // Strong students: top 30% by subject strength
+    const strongCut = Math.max(1, Math.ceil(subjectList.length * 0.3));
+    const strongStudents = subjectList.slice(0, strongCut).map((s) => String(s.studentId));
+
+    // Weak students: overallRisk HIGH OR subject strength < 40
+    const weakSet = new Set();
+    for (const s of riskRollup) {
+      if (s.overallRisk === "HIGH") weakSet.add(String(s.studentId));
+    }
+    for (const [sid, score] of subjectStrengthByStudent.entries()) {
+      if (score < 40) weakSet.add(String(sid));
+    }
+
+    // Build suggestions (one strong mentor per weak student; round-robin)
+    const suggestions = [];
+    if (strongStudents.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const weakStudents = [...weakSet];
+    let idx = 0;
+    for (const weakStudent of weakStudents) {
+      // choose a strong student different from weak
+      let chosen = null;
+      for (let attempt = 0; attempt < strongStudents.length; attempt++) {
+        const candidate = strongStudents[(idx + attempt) % strongStudents.length];
+        if (candidate !== weakStudent) {
+          chosen = candidate;
+          idx = (idx + attempt + 1) % strongStudents.length;
+          break;
+        }
+      }
+      if (!chosen) continue;
+
+      const reason = decliningByStudent.get(weakStudent) ? "DECLINING_TREND" : "LOW_MARKS";
+      suggestions.push({
+        weakStudent,
+        strongStudent: chosen,
+        subject,
+        reason,
+      });
+    }
+
+    res.status(200).json(suggestions);
+  } catch (err) {
+    console.error("getPeerSuggestions error:", err);
+    res.status(500).json({ message: "Failed to compute peer suggestions" });
   }
 };
 
@@ -605,4 +845,5 @@ module.exports = {
   getTopPerformers,
   getStudentTrend,
   getSectionRiskStudents,
+  getPeerSuggestions,
 };

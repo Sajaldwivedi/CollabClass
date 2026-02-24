@@ -9,6 +9,7 @@ const {
   getTopPerformers,
   getStudentTrend,
   getSectionRiskStudents,
+  getPeerSuggestions,
 } = require("../controllers/analyticsController");
 
 /**
@@ -75,6 +76,17 @@ router.get(
   protect,
   authorizeRoles("teacher"),
   getSectionRiskStudents
+);
+
+/**
+ * GET /api/analytics/peer-suggestions?subject=DBMS
+ * Teacher-only. Section-scoped. Suggests peer mentor pairs for a subject.
+ */
+router.get(
+  "/peer-suggestions",
+  protect,
+  authorizeRoles("teacher"),
+  getPeerSuggestions
 );
 
 module.exports = router;
