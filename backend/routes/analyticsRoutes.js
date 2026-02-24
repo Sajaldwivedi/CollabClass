@@ -8,6 +8,7 @@ const {
   getInterventions,
   getTopPerformers,
   getStudentTrend,
+  getSectionRiskStudents,
 } = require("../controllers/analyticsController");
 
 /**
@@ -63,6 +64,17 @@ router.get(
   protect,
   authorizeRoles("student"),
   getStudentTrend
+);
+
+/**
+ * GET /api/analytics/risk-students
+ * Teacher-only. Base section risk rollup (core intelligence layer).
+ */
+router.get(
+  "/risk-students",
+  protect,
+  authorizeRoles("teacher"),
+  getSectionRiskStudents
 );
 
 module.exports = router;

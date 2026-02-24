@@ -13,19 +13,19 @@ const riskFromStrength = (strengthScore) => {
 };
 
 /**
- * Section-scoped per-student rollup used by teacher analytics endpoints.
+ * Section-scoped per-student risk rollup used by teacher analytics endpoints.
  *
  * Aggregation strategy (no N+1):
  * - 1 aggregation for section student IDs (User)
  * - 1 aggregation for submission stats by student (Submission + $lookup Assignment)
  * - 1 aggregation for threads started by student in section (DoubtThread)
  * - 1 aggregation for replies given by student in section (DoubtReply + $lookup DoubtThread)
- * Then merge maps in memory and compute normalized engagement & overall metrics.
+ * Then merge maps in memory and compute normalized engagement & risk metrics.
  */
-const buildSectionStudentRollup = async (teacherSection) => {
+async function buildSectionRiskRollup(section) {
   const [students, submissionStats, threadStats, replyStats] = await Promise.all([
     User.aggregate([
-      { $match: { role: "student", section: teacherSection } },
+      { $match: { role: "student", section } },
       { $project: { _id: 1 } },
     ]),
     Submission.aggregate([
@@ -38,13 +38,13 @@ const buildSectionStudentRollup = async (teacherSection) => {
         },
       },
       { $unwind: "$assignmentDoc" },
-      { $match: { "assignmentDoc.section": teacherSection } },
+      { $match: { "assignmentDoc.section": section } },
       {
         $group: {
           _id: "$student",
           avgMarks: { $avg: "$marks" },
           totalSubmissions: { $sum: 1 },
-          lateSubmissions: { $sum: { $cond: ["$isLate", 1, 0] } },
+          lateCount: { $sum: { $cond: ["$isLate", 1, 0] } },
         },
       },
       {
@@ -53,13 +53,13 @@ const buildSectionStudentRollup = async (teacherSection) => {
           studentId: "$_id",
           avgMarks: { $ifNull: ["$avgMarks", 0] },
           totalSubmissions: 1,
-          lateSubmissions: 1,
+          lateCount: 1,
           lateRatio: {
             $cond: [
               { $gt: ["$totalSubmissions", 0] },
               {
                 $multiply: [
-                  { $divide: ["$lateSubmissions", "$totalSubmissions"] },
+                  { $divide: ["$lateCount", "$totalSubmissions"] },
                   100,
                 ],
               },
@@ -72,7 +72,7 @@ const buildSectionStudentRollup = async (teacherSection) => {
     DoubtThread.aggregate([
       {
         $match: {
-          section: teacherSection,
+          section,
           role: "student",
           isDeleted: { $ne: true },
         },
@@ -93,7 +93,7 @@ const buildSectionStudentRollup = async (teacherSection) => {
       { $unwind: "$threadDoc" },
       {
         $match: {
-          "threadDoc.section": teacherSection,
+          "threadDoc.section": section,
           "threadDoc.isDeleted": { $ne: true },
         },
       },
@@ -118,20 +118,20 @@ const buildSectionStudentRollup = async (teacherSection) => {
 
     const avgMarks = sub ? Number(sub.avgMarks) || 0 : 0;
     const totalSubmissions = sub ? Number(sub.totalSubmissions) || 0 : 0;
-    const lateSubmissions = sub ? Number(sub.lateSubmissions) || 0 : 0;
+    const lateCount = sub ? Number(sub.lateCount) || 0 : 0;
     const lateRatio = sub ? Number(sub.lateRatio) || 0 : 0;
 
     const threadsStarted = Number(threadsByStudent.get(studentId) || 0);
     const repliesGiven = Number(repliesByStudent.get(studentId) || 0);
 
     // Refined engagement (raw; normalized later against section max)
-    const engagementRaw = repliesGiven * 3 + threadsStarted * 2 - lateSubmissions * 1;
+    const engagementRaw = repliesGiven * 3 + threadsStarted * 2 - lateCount * 1;
 
     return {
       studentId,
       avgMarks,
       totalSubmissions,
-      lateSubmissions,
+      lateCount,
       lateRatio,
       threadsStarted,
       repliesGiven,
@@ -144,32 +144,41 @@ const buildSectionStudentRollup = async (teacherSection) => {
     return v > max ? v : max;
   }, 0);
 
-  // Overall strength model (0–100) used as the risk base for teacher endpoints.
-  // Marks dominate; engagement contributes; lateness penalizes.
-  return rollup.map((s) => {
+  const withScores = rollup.map((s) => {
     const engagementScore =
       maxEngagementRaw > 0
         ? clamp((Math.max(0, s.engagementRaw) / maxEngagementRaw) * 100, 0, 100)
         : 0;
 
     const overallStrength = clamp(
-      clamp(s.avgMarks, 0, 100) * 0.65 +
-        clamp(engagementScore, 0, 100) * 0.25 -
+      clamp(s.avgMarks, 0, 100) * 0.6 +
+        clamp(engagementScore, 0, 100) * 0.2 -
         clamp(s.lateRatio, 0, 100) * 0.1,
       0,
       100
     );
 
     const overallRisk = riskFromStrength(overallStrength);
+    const needsIntervention = overallRisk === "HIGH";
 
     return {
-      ...s,
+      studentId: s.studentId,
+      avgMarks: Math.round(Number(s.avgMarks || 0) * 100) / 100,
+      totalSubmissions: Number(s.totalSubmissions) || 0,
+      lateRatio: Math.round(Number(s.lateRatio || 0) * 100) / 100,
+      threadsStarted: Number(s.threadsStarted) || 0,
+      repliesGiven: Number(s.repliesGiven) || 0,
       engagementScore: Math.round(engagementScore * 100) / 100,
       overallStrength: Math.round(overallStrength * 100) / 100,
       overallRisk,
+      needsIntervention,
     };
   });
-};
+
+  // Highest risk first => ascending by strength
+  withScores.sort((a, b) => a.overallStrength - b.overallStrength);
+  return withScores;
+}
 
 /**
  * GET /api/analytics/student-strength
@@ -381,7 +390,7 @@ const getInterventions = async (req, res) => {
       return res.status(403).json({ message: "Section not assigned; access denied" });
     }
 
-    const rollup = await buildSectionStudentRollup(teacherSection);
+    const rollup = await buildSectionRiskRollup(teacherSection);
 
     const result = rollup.map((s) => {
       let recommendedAction = "MONITOR";
@@ -393,8 +402,8 @@ const getInterventions = async (req, res) => {
 
       return {
         studentId: s.studentId,
-        avgMarks: Math.round(s.avgMarks * 100) / 100,
-        lateRatio: Math.round(s.lateRatio * 100) / 100,
+        avgMarks: s.avgMarks,
+        lateRatio: s.lateRatio,
         engagementScore: s.engagementScore,
         overallStrength: s.overallStrength,
         overallRisk: s.overallRisk,
@@ -420,7 +429,7 @@ const getTopPerformers = async (req, res) => {
       return res.status(403).json({ message: "Section not assigned; access denied" });
     }
 
-    const rollup = await buildSectionStudentRollup(teacherSection);
+    const rollup = await buildSectionRiskRollup(teacherSection);
 
     const result = rollup
       .slice()
@@ -430,13 +439,32 @@ const getTopPerformers = async (req, res) => {
         studentId: s.studentId,
         overallStrength: s.overallStrength,
         engagementScore: s.engagementScore,
-        avgMarks: Math.round(s.avgMarks * 100) / 100,
+        avgMarks: s.avgMarks,
       }));
 
     res.status(200).json(result);
   } catch (err) {
     console.error("getTopPerformers error:", err);
     res.status(500).json({ message: "Failed to compute top performers" });
+  }
+};
+
+/**
+ * GET /api/analytics/risk-students
+ * Teacher-only. Section-scoped. Returns the full risk rollup (highest risk first).
+ */
+const getSectionRiskStudents = async (req, res) => {
+  try {
+    const teacherSection = req.user.section;
+    if (!teacherSection) {
+      return res.status(403).json({ message: "Section not assigned; access denied" });
+    }
+
+    const rollup = await buildSectionRiskRollup(teacherSection);
+    res.status(200).json(rollup);
+  } catch (err) {
+    console.error("getSectionRiskStudents error:", err);
+    res.status(500).json({ message: "Failed to compute section risk rollup" });
   }
 };
 
@@ -543,4 +571,5 @@ module.exports = {
   getInterventions,
   getTopPerformers,
   getStudentTrend,
+  getSectionRiskStudents,
 };
