@@ -161,6 +161,12 @@ async function buildSectionRiskRollup(section) {
     const overallRisk = riskFromStrength(overallStrength);
     const needsIntervention = overallRisk === "HIGH";
 
+    const riskIndexRaw =
+      (100 - clamp(s.avgMarks, 0, 100)) * 0.5 +
+      clamp(s.lateRatio, 0, 100) * 0.3 +
+      (100 - clamp(engagementScore, 0, 100)) * 0.2;
+    const riskIndex = clamp(riskIndexRaw, 0, 100);
+
     return {
       studentId: s.studentId,
       avgMarks: Math.round(Number(s.avgMarks || 0) * 100) / 100,
@@ -171,6 +177,7 @@ async function buildSectionRiskRollup(section) {
       engagementScore: Math.round(engagementScore * 100) / 100,
       overallStrength: Math.round(overallStrength * 100) / 100,
       overallRisk,
+      riskIndex: Math.round(riskIndex * 100) / 100,
       needsIntervention,
     };
   });
@@ -407,6 +414,7 @@ const getInterventions = async (req, res) => {
         engagementScore: s.engagementScore,
         overallStrength: s.overallStrength,
         overallRisk: s.overallRisk,
+        riskIndex: s.riskIndex,
         recommendedAction,
       };
     });
@@ -440,6 +448,7 @@ const getTopPerformers = async (req, res) => {
         overallStrength: s.overallStrength,
         engagementScore: s.engagementScore,
         avgMarks: s.avgMarks,
+        riskIndex: s.riskIndex,
       }));
 
     res.status(200).json(result);
@@ -558,7 +567,31 @@ const getStudentTrend = async (req, res) => {
       strengthScore: Math.round(Number(t.strengthScore || 0) * 100) / 100,
     }));
 
-    res.status(200).json(result);
+    let trendStatus = "INSUFFICIENT_DATA";
+    let percentageChange = null;
+
+    if (result.length >= 2) {
+      const previous = Number(result[result.length - 2].strengthScore) || 0;
+      const current = Number(result[result.length - 1].strengthScore) || 0;
+
+      if (previous === 0) {
+        trendStatus = "STABLE";
+        percentageChange = null;
+      } else {
+        const rawChange = ((current - previous) / previous) * 100;
+        percentageChange = Math.round(rawChange * 100) / 100;
+
+        if (percentageChange <= -20) trendStatus = "DECLINING";
+        else if (percentageChange >= 15) trendStatus = "IMPROVING";
+        else trendStatus = "STABLE";
+      }
+    }
+
+    res.status(200).json({
+      trendData: result,
+      trendStatus,
+      percentageChange,
+    });
   } catch (err) {
     console.error("getStudentTrend error:", err);
     res.status(500).json({ message: "Failed to compute student trend" });
