@@ -173,7 +173,7 @@ export const StudentDashboardPage: React.FC = () => {
           </div>
           <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.1fr)]">
             <div className="space-y-2 text-[11px]">
-              {loading || !strength
+              {loading || strength === null
                 ? Array.from({ length: 4 }).map((_, i) => (
                     <div
                       key={i}
@@ -183,6 +183,14 @@ export const StudentDashboardPage: React.FC = () => {
                       <div className="h-2 w-20 rounded-full bg-slate-800/80" />
                     </div>
                   ))
+                : strength.length === 0
+                ? (
+                  <div className="rounded-2xl bg-slate-900/80 px-3 py-4 text-slate-400">
+                    Once you start submitting assignments, asking doubts, and
+                    replying to others, your subject intelligence model will wake
+                    up here.
+                  </div>
+                )
                 : strength.map((s) => (
                     <div
                       key={s.subject}
@@ -312,42 +320,47 @@ export const StudentDashboardPage: React.FC = () => {
             {trend && <TrendPill status={trend.trendStatus} />}
           </div>
           <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={
-                  trend?.trendData.map((row) => ({
+            {trend && trend.trendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={trend.trendData.map((row) => ({
                     label: `${row.month}/${row.year}`,
                     score: row.strengthScore
-                  })) ?? []
-                }
-              >
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                />
-                <YAxis
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  domain={[0, 100]}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#020617",
-                    borderRadius: 12,
-                    border: "1px solid rgba(148, 163, 184, 0.5)"
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#38bdf8"
-                  strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 0 }}
-                  activeDot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+                  }))}
+                >
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#9ca3af" }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#020617",
+                      borderRadius: 12,
+                      border: "1px solid rgba(148, 163, 184, 0.5)"
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#38bdf8"
+                    strokeWidth={2}
+                    dot={{ r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl bg-slate-900/70 text-[11px] text-slate-400">
+                Once CollabClass has a few weeks of grades and activity, your
+                performance curve will animate here.
+              </div>
+            )}
           </div>
           {trend && trend.percentageChange !== null && (
             <p className="text-[11px] text-slate-300">

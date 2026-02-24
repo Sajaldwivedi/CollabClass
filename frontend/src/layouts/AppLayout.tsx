@@ -10,7 +10,8 @@ import {
   SunMedium,
   MoonStar,
   BookOpen,
-  Share2
+  Share2,
+  FileText
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTheme } from "../theme/ThemeProvider";
@@ -30,12 +31,18 @@ const navItemsByRole: Record<
 > = {
   teacher: [
     { label: "Overview", to: ROUTES.teacherDashboard, icon: BarChart3 },
+    { label: "Assignments", to: ROUTES.teacherAssignments, icon: FileText },
     { label: "Doubts", to: ROUTES.teacherDoubts, icon: MessageCircle },
     { label: "Study Materials", to: ROUTES.teacherMaterials, icon: BookOpen },
     { label: "Peer Sessions", to: ROUTES.teacherPeerSessions, icon: Share2 }
   ],
   student: [
-    { label: "My Intelligence", to: ROUTES.studentDashboard, icon: GraduationCap },
+    {
+      label: "My Intelligence",
+      to: ROUTES.studentDashboard,
+      icon: GraduationCap
+    },
+    { label: "Assignments", to: ROUTES.studentAssignments, icon: FileText },
     { label: "Doubts", to: ROUTES.studentDoubts, icon: MessageCircle },
     { label: "Study Materials", to: ROUTES.studentMaterials, icon: BookOpen },
     { label: "Peer Sessions", to: ROUTES.studentPeerSessions, icon: Share2 }
@@ -96,20 +103,20 @@ const NotificationBell: React.FC = () => {
                   onClick={() => markNotificationRead(n.id)}
                   className={cn(
                     "w-full rounded-xl px-3 py-2.5 text-left text-xs transition-all",
-                    n.read
+                    n.isRead
                       ? "bg-slate-900/60 text-slate-400"
                       : "bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/60 text-slate-50 border border-emerald-500/40 shadow-soft-xl"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-[11px] uppercase tracking-wide text-emerald-300">
-                      {n.title}
+                      {n.type.replace(/_/g, " ")}
                     </span>
                     <span className="text-[10px] text-slate-400">
                       {new Date(n.createdAt).toLocaleTimeString()}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] leading-snug">{n.body}</p>
+                  <p className="mt-1 text-[11px] leading-snug">{n.message}</p>
                 </button>
               ))
             )}

@@ -10,12 +10,24 @@ body {
   @apply bg-slate-950 text-slate-50 antialiased;
 }
 
+html:not(.dark) body {
+  @apply bg-slate-50 text-slate-900;
+}
+
 .glass-surface {
   @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 shadow-soft-xl;
 }
 
+html:not(.dark) .glass-surface {
+  @apply bg-white/80 backdrop-blur-xl border border-slate-200 shadow-soft-xl;
+}
+
 .page-shell {
   @apply min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950;
+}
+
+html:not(.dark) .page-shell {
+  @apply min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50;
 }
 
 .scroll-thin {
@@ -28,4 +40,8 @@ body {
 
 .scroll-thin::-webkit-scrollbar-thumb {
   @apply bg-slate-700 rounded-full;
+}
+
+html:not(.dark) .scroll-thin::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
 }

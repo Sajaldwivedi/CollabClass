@@ -11,9 +11,39 @@ const TeacherDashboardPage = React.lazy(() =>
     default: m.TeacherDashboardPage
   }))
 );
+const TeacherStudyMaterialsPage = React.lazy(() =>
+  import("./pages/teacher/StudyMaterialsPage").then((m) => ({
+    default: m.TeacherStudyMaterialsPage
+  }))
+);
+const TeacherPeerSessionsPage = React.lazy(() =>
+  import("./pages/teacher/PeerSessionsPage").then((m) => ({
+    default: m.TeacherPeerSessionsPage
+  }))
+);
+const TeacherAssignmentsPage = React.lazy(() =>
+  import("./pages/teacher/AssignmentsPage").then((m) => ({
+    default: m.TeacherAssignmentsPage
+  }))
+);
 const StudentDashboardPage = React.lazy(() =>
   import("./pages/student/StudentDashboardPage").then((m) => ({
     default: m.StudentDashboardPage
+  }))
+);
+const StudentStudyMaterialsPage = React.lazy(() =>
+  import("./pages/student/StudyMaterialsPage").then((m) => ({
+    default: m.StudentStudyMaterialsPage
+  }))
+);
+const StudentPeerSessionsPage = React.lazy(() =>
+  import("./pages/student/PeerSessionsPage").then((m) => ({
+    default: m.StudentPeerSessionsPage
+  }))
+);
+const StudentAssignmentsPage = React.lazy(() =>
+  import("./pages/student/AssignmentsPage").then((m) => ({
+    default: m.StudentAssignmentsPage
   }))
 );
 const DoubtDiscussionPage = React.lazy(() =>
@@ -81,8 +111,10 @@ export const App: React.FC = () => {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboardPage />} />
+          <Route path="assignments" element={<TeacherAssignmentsPage />} />
           <Route path="doubts" element={<DoubtDiscussionPage />} />
-          {/* study-materials and peer-sessions routes wired below */}
+          <Route path="study-materials" element={<TeacherStudyMaterialsPage />} />
+          <Route path="peer-sessions" element={<TeacherPeerSessionsPage />} />
         </Route>
 
         <Route
@@ -95,7 +127,10 @@ export const App: React.FC = () => {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<StudentDashboardPage />} />
+          <Route path="assignments" element={<StudentAssignmentsPage />} />
           <Route path="doubts" element={<DoubtDiscussionPage />} />
+          <Route path="study-materials" element={<StudentStudyMaterialsPage />} />
+          <Route path="peer-sessions" element={<StudentPeerSessionsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={defaultAuthedRoute} replace />} />
