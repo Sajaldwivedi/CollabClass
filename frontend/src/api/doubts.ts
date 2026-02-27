@@ -66,6 +66,8 @@ export const DoubtsApi = {
 
   markResolved: (id: string) => api.patch(`/doubts/${id}/resolve`),
 
-  closeThread: (id: string) => api.patch(`/doubts/${id}/close`)
+  closeThread: (id: string) => api.patch(`/doubts/${id}/close`),
+
+  deleteThread: (id: string) => api.delete(`/doubts/${id}`)
 };
 

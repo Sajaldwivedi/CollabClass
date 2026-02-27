@@ -92,7 +92,7 @@ async function buildSectionRiskRollup(section) {
   const [students, submissionStats, threadStats, replyStats] = await Promise.all([
     User.aggregate([
       { $match: { role: "student", section } },
-      { $project: { _id: 1 } },
+      { $project: { _id: 1, name: 1, email: 1, regNo: 1 } },
     ]),
     Submission.aggregate([
       {
@@ -180,6 +180,7 @@ async function buildSectionRiskRollup(section) {
 
   const rollup = students.map((s) => {
     const studentId = String(s._id);
+    const studentName = s.name || s.email || studentId;
     const sub = submissionByStudent.get(studentId) || null;
 
     const avgMarks = sub ? Number(sub.avgMarks) || 0 : 0;
@@ -195,6 +196,7 @@ async function buildSectionRiskRollup(section) {
 
     return {
       studentId,
+      studentName,
       avgMarks,
       totalSubmissions,
       lateCount,
@@ -235,6 +237,7 @@ async function buildSectionRiskRollup(section) {
 
     return {
       studentId: s.studentId,
+      studentName: s.studentName,
       avgMarks: Math.round(Number(s.avgMarks || 0) * 100) / 100,
       totalSubmissions: Number(s.totalSubmissions) || 0,
       lateRatio: Math.round(Number(s.lateRatio || 0) * 100) / 100,
@@ -535,7 +538,27 @@ const getPeerSuggestions = async (req, res) => {
       });
     }
 
-    res.status(200).json(suggestions);
+    // Resolve student names for all suggestions
+    const allStudentIds = new Set();
+    for (const s of suggestions) {
+      allStudentIds.add(s.weakStudent);
+      allStudentIds.add(s.strongStudent);
+    }
+    const studentDocs = await User.find({
+      _id: { $in: [...allStudentIds].filter((id) => mongoose.Types.ObjectId.isValid(id)) },
+    }).select("name email");
+    const nameMap = new Map();
+    for (const doc of studentDocs) {
+      nameMap.set(String(doc._id), doc.name || doc.email || String(doc._id));
+    }
+
+    const enrichedSuggestions = suggestions.map((s) => ({
+      ...s,
+      weakStudentName: nameMap.get(s.weakStudent) || s.weakStudent,
+      strongStudentName: nameMap.get(s.strongStudent) || s.strongStudent,
+    }));
+
+    res.status(200).json(enrichedSuggestions);
   } catch (err) {
     console.error("getPeerSuggestions error:", err);
     res.status(500).json({ message: "Failed to compute peer suggestions" });
@@ -649,6 +672,7 @@ const getInterventions = async (req, res) => {
 
       return {
         studentId: s.studentId,
+        studentName: s.studentName,
         avgMarks: s.avgMarks,
         lateRatio: s.lateRatio,
         engagementScore: s.engagementScore,
@@ -685,6 +709,7 @@ const getTopPerformers = async (req, res) => {
       .slice(0, 5)
       .map((s) => ({
         studentId: s.studentId,
+        studentName: s.studentName,
         overallStrength: s.overallStrength,
         engagementScore: s.engagementScore,
         avgMarks: s.avgMarks,

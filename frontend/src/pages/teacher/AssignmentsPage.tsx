@@ -10,7 +10,7 @@ import {
 } from "../../api/assignments";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, Clock, FileText, PencilLine } from "lucide-react";
+import { CalendarRange, Clock, FileText, PencilLine, XCircle } from "lucide-react";
 
 export const TeacherAssignmentsPage: React.FC = () => {
   const { user } = useAuth();
@@ -123,6 +123,20 @@ export const TeacherAssignmentsPage: React.FC = () => {
   const handleGrade = async (submission: Submission, marks: number) => {
     await SubmissionsApi.grade(submission._id, { marks, feedback: submission.feedback });
     await loadDetail(selected!);
+  };
+
+  const handleCloseAssignment = async (assignment: Assignment) => {
+    try {
+      await AssignmentsApi.close(assignment._id);
+      loadAssignments();
+      if (selected?._id === assignment._id) {
+        setSelected(null);
+        setAnalytics(null);
+      }
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? "Failed to close assignment.";
+      setError(message);
+    }
   };
 
   const openAssignments = assignments.filter((a) => a.status === "open");
@@ -265,6 +279,17 @@ export const TeacherAssignmentsPage: React.FC = () => {
                 {selected.subject} · {selected.section}
               </p>
             </div>
+            {selected.status === "open" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-full px-3 text-[11px] text-rose-300 border-rose-500/40 hover:bg-rose-500/10"
+                onClick={() => void handleCloseAssignment(selected)}
+              >
+                <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                Close assignment
+              </Button>
+            )}
           </div>
           {loadingDetail || !analytics ? (
             <div className="flex items-center gap-2 text-[11px] text-slate-400">

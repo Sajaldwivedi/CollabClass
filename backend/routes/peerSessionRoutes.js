@@ -11,11 +11,13 @@ const {
 } = require("../controllers/peerSessionController");
 
 router.use(protect);
-router.use(authorizeRoles("teacher"));
 
-router.post("/", createPeerSession);
+// Students can view peer sessions they're involved in
 router.get("/", getPeerSessions);
-router.patch("/:id/status", updatePeerSessionStatus);
+
+// Only teachers can create and update sessions
+router.post("/", authorizeRoles("teacher"), createPeerSession);
+router.patch("/:id/status", authorizeRoles("teacher"), updatePeerSessionStatus);
 
 module.exports = router;
 

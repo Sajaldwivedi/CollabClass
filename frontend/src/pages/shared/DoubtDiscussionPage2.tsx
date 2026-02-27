@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   SendHorizonal,
   Loader2,
-  Sparkles
+  Sparkles,
+  XCircle,
+  Trash2,
 } from "lucide-react";
 
 const formatContentToHtml = (content: string) => {
@@ -178,6 +180,30 @@ export const DoubtDiscussionPage2: React.FC = () => {
         t._id === activeThread.thread._id ? { ...t, status: "resolved" } : t
       )
     );
+  };
+
+  const handleClose = async () => {
+    if (!activeThread) return;
+    await DoubtsApi.closeThread(activeThread.thread._id);
+    void loadThread(activeThread.thread._id);
+    setThreads((prev) =>
+      prev.map((t) =>
+        t._id === activeThread.thread._id ? { ...t, status: "closed" } : t
+      )
+    );
+  };
+
+  const handleDelete = async () => {
+    if (!activeThread) return;
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this thread? This cannot be undone."
+    );
+    if (!confirmed) return;
+    await DoubtsApi.deleteThread(activeThread.thread._id);
+    setThreads((prev) =>
+      prev.filter((t) => t._id !== activeThread.thread._id)
+    );
+    setActiveThread(null);
   };
 
   const filteredThreads = threads.filter((t) => {
@@ -396,7 +422,8 @@ export const DoubtDiscussionPage2: React.FC = () => {
               </div>
               <div className="flex gap-1">
                 {user?.role === "teacher" &&
-                  activeThread.thread.status !== "resolved" && (
+                  activeThread.thread.status !== "resolved" &&
+                  activeThread.thread.status !== "closed" && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -407,6 +434,29 @@ export const DoubtDiscussionPage2: React.FC = () => {
                       Mark resolved
                     </Button>
                   )}
+                {user?.role === "teacher" &&
+                  activeThread.thread.status !== "closed" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 rounded-full px-3 text-[10px] text-amber-300"
+                      onClick={handleClose}
+                    >
+                      <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                      Close
+                    </Button>
+                  )}
+                {user?.role === "teacher" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 rounded-full px-3 text-[10px] text-rose-300"
+                    onClick={handleDelete}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto scroll-thin rounded-2xl bg-slate-950/80 px-3 py-3 text-[11px]">

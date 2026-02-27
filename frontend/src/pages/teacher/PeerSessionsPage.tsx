@@ -123,8 +123,8 @@ export const TeacherPeerSessionsPage: React.FC = () => {
               >
                 <div>
                   <p className="text-[11px] text-slate-400">
-                    Weak: {s.weakStudent.slice(0, 6)}… · Strong:{" "}
-                    {s.strongStudent.slice(0, 6)}…
+                    Weak: {s.weakStudentName ?? s.weakStudent.slice(0, 8)}… · Strong:{" "}
+                    {s.strongStudentName ?? s.strongStudent.slice(0, 8)}…
                   </p>
                   <p className="text-xs font-medium text-slate-50">
                     {s.subject}
