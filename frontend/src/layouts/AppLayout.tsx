@@ -134,8 +134,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
   const { user, logout } = useAuth();
 
   return (
-    <div className="page-shell flex">
-      <aside className="glass-surface relative flex h-screen w-64 flex-col px-4 py-6">
+    <div className="page-shell flex h-screen overflow-hidden">
+      <aside className="glass-surface relative flex h-screen w-64 shrink-0 flex-col overflow-y-auto scroll-thin px-4 py-6">
         <div className="flex items-center gap-3 px-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-soft-xl">
             <Sparkles className="h-5 w-5 text-primary-foreground" />

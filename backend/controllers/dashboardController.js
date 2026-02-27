@@ -19,10 +19,11 @@ const getTeacherDashboard = async (req, res) => {
     // 2️⃣ Count assignments
     const totalAssignments = assignmentIds.length;
 
-    // 3️⃣ Count students (optional: could scope by section later)
-    const totalStudents = await User.countDocuments({
-      role: "student",
-    });
+    // 3️⃣ Count students in teacher's section
+    const sectionFilter = req.user.section
+      ? { role: "student", section: req.user.section }
+      : { role: "student" };
+    const totalStudents = await User.countDocuments(sectionFilter);
 
     // 4️⃣ Submissions only for teacher's assignments
     const totalSubmissions = await Submission.countDocuments({
