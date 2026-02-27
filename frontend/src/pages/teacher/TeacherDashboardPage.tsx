@@ -28,7 +28,7 @@ import { TrendPill } from "../../components/analytics/TrendPill";
 import { ProgressBar } from "../../components/analytics/ProgressBar";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, ChevronRight, Clock, Link2, Sparkles, Trophy } from "lucide-react";
+import { CalendarRange, ChevronRight, Clock, Link2, Sparkles, Trophy, Users, X, Search, ArrowUpDown } from "lucide-react";
 
 export const TeacherDashboardPage: React.FC = () => {
   const [riskStudents, setRiskStudents] = React.useState<RiskStudent[]>([]);
@@ -41,6 +41,11 @@ export const TeacherDashboardPage: React.FC = () => {
   const [riskFilter, setRiskFilter] = React.useState<"all" | "high" | "medium">(
     "all"
   );
+  const [showStudentDirectory, setShowStudentDirectory] = React.useState(false);
+  const [studentSearch, setStudentSearch] = React.useState("");
+  const [studentSort, setStudentSort] = React.useState<"name" | "risk" | "marks" | "engagement">("name");
+  const [studentSortAsc, setStudentSortAsc] = React.useState(true);
+  const [directoryFilter, setDirectoryFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
 
   React.useEffect(() => {
     let isMounted = true;
@@ -121,51 +126,253 @@ export const TeacherDashboardPage: React.FC = () => {
     return "#22c55e";
   };
 
+  const sortedDirectoryStudents = React.useMemo(() => {
+    let list = [...riskStudents];
+    if (directoryFilter !== "all") {
+      list = list.filter((s) => s.riskBand === directoryFilter);
+    }
+    if (studentSearch.trim()) {
+      const q = studentSearch.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.studentId.toLowerCase().includes(q)
+      );
+    }
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (studentSort) {
+        case "name":
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case "risk":
+          cmp = a.riskIndex - b.riskIndex;
+          break;
+        case "marks":
+          cmp = a.avgMarks - b.avgMarks;
+          break;
+        case "engagement":
+          cmp = a.engagementScore - b.engagementScore;
+          break;
+      }
+      return studentSortAsc ? cmp : -cmp;
+    });
+    return list;
+  }, [riskStudents, directoryFilter, studentSearch, studentSort, studentSortAsc]);
+
+  const toggleSort = (col: typeof studentSort) => {
+    if (studentSort === col) {
+      setStudentSortAsc(!studentSortAsc);
+    } else {
+      setStudentSort(col);
+      setStudentSortAsc(true);
+    }
+  };
+
   return (
     <div className="space-y-5">
+      {/* ─── Student Directory Modal ─── */}
+      {showStudentDirectory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative mx-4 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950 shadow-2xl"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10">
+                  <Users className="h-4.5 w-4.5 text-emerald-300" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-50">
+                    Student directory
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    {riskStudents.length} students in your section
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStudentDirectory(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Search + Filters */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/60 px-6 py-3">
+              <div className="flex flex-1 items-center gap-2 rounded-2xl bg-slate-900/80 px-3 py-2">
+                <Search className="h-3.5 w-3.5 text-slate-500" />
+                <input
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="Search by name or ID…"
+                  className="w-full bg-transparent text-xs text-slate-50 outline-none placeholder:text-slate-500"
+                />
+              </div>
+              <div className="inline-flex gap-1 rounded-2xl bg-slate-900/80 p-1 text-[10px]">
+                {(["all", "high", "medium", "low"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setDirectoryFilter(f)}
+                    className={cn(
+                      "rounded-xl px-2.5 py-1 capitalize transition-all",
+                      directoryFilter === f
+                        ? "bg-slate-800 text-slate-50"
+                        : "text-slate-400 hover:text-slate-100"
+                    )}
+                  >
+                    {f === "all" ? "All" : f === "high" ? "High" : f === "medium" ? "Medium" : "Low"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Table header */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-6 py-2 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+              {([
+                { key: "name" as const, label: "Student" },
+                { key: "risk" as const, label: "Risk" },
+                { key: "marks" as const, label: "Avg marks" },
+                { key: "engagement" as const, label: "Engagement" },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => toggleSort(key)}
+                  className="flex items-center gap-1 text-left hover:text-slate-200 transition"
+                >
+                  {label}
+                  <ArrowUpDown className={cn("h-3 w-3", studentSort === key ? "text-emerald-400" : "text-slate-600")} />
+                </button>
+              ))}
+              <span>Status</span>
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex-1 divide-y divide-slate-800/50 overflow-y-auto scroll-thin px-2">
+              {sortedDirectoryStudents.length === 0 ? (
+                <div className="px-4 py-12 text-center text-xs text-slate-400">
+                  No students match your search.
+                </div>
+              ) : (
+                sortedDirectoryStudents.map((s, idx) => (
+                  <motion.div
+                    key={s.studentId}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(idx * 0.02, 0.3) }}
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center gap-2 rounded-xl px-4 py-3 text-[11px] text-slate-200 transition hover:bg-slate-900/60"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                        s.riskBand === "high"
+                          ? "bg-rose-500/15 text-rose-300"
+                          : s.riskBand === "medium"
+                          ? "bg-amber-500/15 text-amber-300"
+                          : "bg-emerald-500/15 text-emerald-300"
+                      )}>
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-50">{s.name}</p>
+                        <p className="text-[10px] text-slate-500">ID: {s.studentId.slice(0, 10)}…</p>
+                      </div>
+                    </div>
+                    <div>
+                      <ProgressBar value={s.riskIndex} />
+                      <p className="mt-0.5 text-[10px] text-slate-400">{s.riskIndex.toFixed(0)}/100</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-50">{s.avgMarks.toFixed(1)}</p>
+                      <p className="text-[10px] text-slate-400">{s.totalSubmissions} submissions</p>
+                    </div>
+                    <div>
+                      <ProgressBar value={s.engagementScore} />
+                      <p className="mt-0.5 text-[10px] text-slate-400">{s.engagementScore.toFixed(0)}%</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <RiskBadge band={s.riskBand} />
+                      {s.needsIntervention && (
+                        <Sparkles className="h-3 w-3 text-rose-300" />
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-800 px-6 py-3 text-[10px] text-slate-400">
+              <span>
+                Showing {sortedDirectoryStudents.length} of {riskStudents.length} students
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 rounded-full px-3 text-[10px]"
+                onClick={() => setShowStudentDirectory(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard
-          label="Total students"
-          value={dashboardData?.totalStudents ?? riskStudents.length}
-          trend={dashboardData ? `${dashboardData.totalSubmissions} total submissions` : "+3 added this week"}
-          accent="emerald"
-          rightNode={
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sparklineData}>
-                <XAxis dataKey="idx" hide />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#020617",
-                    borderRadius: 12,
-                    border: "1px solid rgba(148, 163, 184, 0.5)"
-                  }}
-                  labelFormatter={(idx) =>
-                    sparklineData[Number(idx)]?.label ?? ""
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#34d399"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          }
-        />
-        <StatCard
-          label="High risk"
-          value={highRisk.length}
-          trend="Auto-flagged for intervention"
-          accent="rose"
-        />
-        <StatCard
-          label="Medium risk"
-          value={mediumRisk.length}
-          trend="Monitor next 2 weeks"
-          accent="amber"
-        />
+        <div className="cursor-pointer" onClick={() => setShowStudentDirectory(true)}>
+          <StatCard
+            label="Total students"
+            value={dashboardData?.totalStudents ?? riskStudents.length}
+            trend={dashboardData ? `${dashboardData.totalSubmissions} total submissions` : "Click to view all"}
+            accent="emerald"
+            rightNode={
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sparklineData}>
+                  <XAxis dataKey="idx" hide />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#020617",
+                      borderRadius: 12,
+                      border: "1px solid rgba(148, 163, 184, 0.5)"
+                    }}
+                    labelFormatter={(idx) =>
+                      sparklineData[Number(idx)]?.label ?? ""
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#34d399"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            }
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => { setDirectoryFilter("high"); setShowStudentDirectory(true); }}>
+          <StatCard
+            label="High risk"
+            value={highRisk.length}
+            trend="Auto-flagged for intervention"
+            accent="rose"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => { setDirectoryFilter("medium"); setShowStudentDirectory(true); }}>
+          <StatCard
+            label="Medium risk"
+            value={mediumRisk.length}
+            trend="Monitor next 2 weeks"
+            accent="amber"
+          />
+        </div>
         <StatCard
           label="Active peer sessions"
           value={peerSessions.filter((s) => s.status === "SCHEDULED").length}
