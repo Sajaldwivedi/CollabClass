@@ -145,6 +145,45 @@ export const TeacherAssignmentsPage: React.FC = () => {
     }
   };
 
+  const handleUpdateDeadline = async () => {
+    if (!selected || !newDeadline) return;
+    setSavingDeadline(true);
+    setError(null);
+    try {
+      const res = await AssignmentsApi.updateDeadline(selected._id, newDeadline);
+      setSelected(res.data);
+      setEditingDeadline(false);
+      loadAssignments();
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? "Failed to update deadline.";
+      setError(message);
+    } finally {
+      setSavingDeadline(false);
+    }
+  };
+
+  const handleDeleteAssignment = async (assignment: Assignment) => {
+    const confirmed = window.confirm(
+      `Delete "${assignment.title}"? All submissions will also be removed. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await AssignmentsApi.delete(assignment._id);
+      if (selected?._id === assignment._id) {
+        setSelected(null);
+        setAnalytics(null);
+      }
+      loadAssignments();
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? "Failed to delete assignment.";
+      setError(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const openAssignments = assignments.filter((a) => a.status === "open");
   const closedAssignments = assignments.filter((a) => a.status === "closed");
   const expiredAssignments = assignments.filter((a) => a.status === "expired");
@@ -285,17 +324,76 @@ export const TeacherAssignmentsPage: React.FC = () => {
                 {selected.subject} · {selected.section}
               </p>
             </div>
-            {selected.status === "open" && (
+            <div className="flex items-center gap-2">
+              {/* ── Deadline display / edit ── */}
+              {editingDeadline ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="datetime-local"
+                    value={newDeadline}
+                    onChange={(e) => setNewDeadline(e.target.value)}
+                    className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[10px] text-slate-50 outline-none"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-full px-2.5 text-[10px] text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
+                    onClick={() => void handleUpdateDeadline()}
+                    disabled={savingDeadline}
+                  >
+                    {savingDeadline ? "Saving…" : "Save"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 rounded-full px-2 text-[10px] text-slate-400"
+                    onClick={() => setEditingDeadline(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    const d = new Date(selected.deadline);
+                    const iso = d.toISOString().slice(0, 16);
+                    setNewDeadline(iso);
+                    setEditingDeadline(true);
+                  }}
+                  className="group inline-flex items-center gap-1 rounded-2xl bg-slate-900/80 px-2 py-1 text-[10px] text-slate-400 transition hover:text-sky-300"
+                  title="Click to edit deadline"
+                >
+                  <CalendarClock className="h-3 w-3" />
+                  Due {new Date(selected.deadline).toLocaleString()}
+                  <PencilLine className="ml-1 h-2.5 w-2.5 opacity-0 transition group-hover:opacity-100" />
+                </button>
+              )}
+
+              {/* ── Close button ── */}
+              {selected.status === "open" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-[11px] text-rose-300 border-rose-500/40 hover:bg-rose-500/10"
+                  onClick={() => void handleCloseAssignment(selected)}
+                >
+                  <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                  Close
+                </Button>
+              )}
+
+              {/* ── Delete button ── */}
               <Button
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-full px-3 text-[11px] text-rose-300 border-rose-500/40 hover:bg-rose-500/10"
-                onClick={() => void handleCloseAssignment(selected)}
+                onClick={() => void handleDeleteAssignment(selected)}
+                disabled={deleting}
               >
-                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                Close assignment
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                {deleting ? "Deleting…" : "Delete"}
               </Button>
-            )}
+            </div>
           </div>
           {loadingDetail || !analytics ? (
             <div className="flex items-center gap-2 text-[11px] text-slate-400">

@@ -7,7 +7,7 @@ import {
 } from "../../api/assignments";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, Clock, FileText } from "lucide-react";
+import { CalendarRange, Clock, FileText, AlertTriangle } from "lucide-react";
 
 type BucketKey = "pending" | "missed" | "closed";
 
@@ -124,8 +124,8 @@ export const StudentAssignmentsPage: React.FC = () => {
                 {a.subject} · due {new Date(a.deadline).toLocaleString()}
               </p>
               {key === "missed" && (
-                <p className="mt-0.5 text-[10px] text-rose-300">
-                  Deadline has passed · may not accept submissions
+                <p className="mt-0.5 text-[10px] text-amber-300">
+                  Past due · you can still submit (marked late)
                 </p>
               )}
             </button>
@@ -181,8 +181,17 @@ export const StudentAssignmentsPage: React.FC = () => {
             {selected.description}
           </p>
 
-          {selected.bucket === "pending" && !completedIds.includes(selected._id) ? (
+          {(selected.bucket === "pending" || selected.bucket === "missed") && !completedIds.includes(selected._id) ? (
             <div className="space-y-2 rounded-2xl bg-slate-950/80 px-3 py-3 text-[11px]">
+              {selected.bucket === "missed" && (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-amber-200">
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+                  <span>
+                    The deadline has passed. You can still submit, but it will be
+                    marked as <strong>late</strong> and visible to your teacher.
+                  </span>
+                </div>
+              )}
               <p className="flex items-center gap-2 text-slate-300">
                 <FileText className="h-3.5 w-3.5 text-sky-300" />
                 Paste your solution or attach a link to your submission.
@@ -196,11 +205,18 @@ export const StudentAssignmentsPage: React.FC = () => {
               />
               <Button
                 size="lg"
-                className="w-full justify-center gap-2 text-xs"
+                className={cn(
+                  "w-full justify-center gap-2 text-xs",
+                  selected.bucket === "missed" && "bg-amber-600 hover:bg-amber-700"
+                )}
                 onClick={() => void handleSubmit()}
                 disabled={submitting}
               >
-                {submitting ? "Submitting..." : "Submit assignment"}
+                {submitting
+                  ? "Submitting..."
+                  : selected.bucket === "missed"
+                  ? "Submit late"
+                  : "Submit assignment"}
               </Button>
               {error && (
                 <p className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-100">
@@ -210,7 +226,7 @@ export const StudentAssignmentsPage: React.FC = () => {
             </div>
           ) : (
             <div className="rounded-2xl bg-slate-950/80 px-3 py-3 text-[11px] text-slate-400">
-              This assignment is {selected.bucket === "missed" ? "past due" : "closed or already submitted."}{" "}
+              This assignment is closed or already submitted.{" "}
               You can still review the prompt and reflect on your approach.
             </div>
           )}
