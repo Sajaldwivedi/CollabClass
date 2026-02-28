@@ -10,7 +10,7 @@ import {
 } from "../../api/assignments";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, Clock, FileText, PencilLine, XCircle } from "lucide-react";
+import { CalendarRange, Clock, FileText, PencilLine, XCircle, Trash2, CalendarClock } from "lucide-react";
 
 export const TeacherAssignmentsPage: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +32,12 @@ export const TeacherAssignmentsPage: React.FC = () => {
   const [deadline, setDeadline] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+
+  /* ── deadline editing state ── */
+  const [editingDeadline, setEditingDeadline] = React.useState(false);
+  const [newDeadline, setNewDeadline] = React.useState("");
+  const [savingDeadline, setSavingDeadline] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   const loadAssignments = React.useCallback(() => {
     setLoading(true);

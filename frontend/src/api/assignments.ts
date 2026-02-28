@@ -70,7 +70,13 @@ export const AssignmentsApi = {
     api.put<{ message: string }>(`/assignments/${id}/close`),
 
   analytics: (id: string) =>
-    api.get<AssignmentAnalytics>(`/assignments/${id}/analytics`)
+    api.get<AssignmentAnalytics>(`/assignments/${id}/analytics`),
+
+  updateDeadline: (id: string, deadline: string) =>
+    api.patch<Assignment>(`/assignments/${id}/deadline`, { deadline }),
+
+  delete: (id: string) =>
+    api.delete<{ message: string }>(`/assignments/${id}`)
 };
 
 export const SubmissionsApi = {
