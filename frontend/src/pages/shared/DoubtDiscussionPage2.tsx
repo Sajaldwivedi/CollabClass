@@ -279,6 +279,7 @@ export const DoubtDiscussionPage2: React.FC = () => {
   const [newThreadBody, setNewThreadBody] = React.useState("");
   const [creatingThread, setCreatingThread] = React.useState(false);
   const [sending, setSending] = React.useState(false);
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
   const repliesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -372,13 +373,10 @@ export const DoubtDiscussionPage2: React.FC = () => {
 
   const handleDelete = async () => {
     if (!activeThread) return;
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this thread? This cannot be undone."
-    );
-    if (!confirmed) return;
     await DoubtsApi.deleteThread(activeThread.thread._id);
     setThreads((prev) => prev.filter((t) => t._id !== activeThread.thread._id));
     setActiveThread(null);
+    setConfirmingDelete(false);
   };
 
   const filteredThreads = threads.filter((t) => {
@@ -675,15 +673,37 @@ export const DoubtDiscussionPage2: React.FC = () => {
                         Close
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 rounded-lg px-2 text-[9px] text-rose-400 hover:bg-rose-500/10"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 size={11} className="mr-1" />
-                      Delete
-                    </Button>
+                    {confirmingDelete ? (
+                      <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/5 px-2.5 py-1">
+                        <span className="text-[9px] text-rose-200">Delete thread?</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 rounded-lg px-2 text-[9px] text-rose-300 hover:bg-rose-500/10"
+                          onClick={handleDelete}
+                        >
+                          Yes
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 rounded-lg px-2 text-[9px] text-slate-400"
+                          onClick={() => setConfirmingDelete(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 rounded-lg px-2 text-[9px] text-rose-400 hover:bg-rose-500/10"
+                        onClick={() => setConfirmingDelete(true)}
+                      >
+                        <Trash2 size={11} className="mr-1" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

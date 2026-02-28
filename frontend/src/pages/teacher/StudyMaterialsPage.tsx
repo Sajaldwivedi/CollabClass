@@ -7,7 +7,7 @@ import {
 } from "../../api/studyMaterials";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, Trash2, UploadCloud } from "lucide-react";
+import { CalendarRange, Trash2, UploadCloud, FileUp, Link } from "lucide-react";
 
 export const TeacherStudyMaterialsPage: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +24,9 @@ export const TeacherStudyMaterialsPage: React.FC = () => {
   const [fileUrl, setFileUrl] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
+  const [uploadMode, setUploadMode] = React.useState<"link" | "file">("link");
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const load = React.useCallback(
     (pageNum: number) => {
@@ -56,23 +59,36 @@ export const TeacherStudyMaterialsPage: React.FC = () => {
   }, [load]);
 
   const handleUpload = async () => {
-    if (!title.trim() || !subject.trim() || !fileUrl.trim() || !section.trim())
-      return;
+    if (!title.trim() || !subject.trim() || !section.trim()) return;
+    if (uploadMode === "link" && !fileUrl.trim()) return;
+    if (uploadMode === "file" && !selectedFile) return;
+
     setUploading(true);
     setError(null);
     try {
-      await StudyMaterialsApi.upload({
-        title: title.trim(),
-        subject: subject.trim(),
-        section: section.trim(),
-        fileUrl: fileUrl.trim(),
-        description: description.trim() || undefined
-      });
+      if (uploadMode === "file" && selectedFile) {
+        const fd = new FormData();
+        fd.append("title", title.trim());
+        fd.append("subject", subject.trim());
+        fd.append("section", section.trim());
+        if (description.trim()) fd.append("description", description.trim());
+        fd.append("file", selectedFile);
+        await StudyMaterialsApi.uploadFile(fd);
+      } else {
+        await StudyMaterialsApi.upload({
+          title: title.trim(),
+          subject: subject.trim(),
+          section: section.trim(),
+          fileUrl: fileUrl.trim(),
+          description: description.trim() || undefined
+        });
+      }
       setTitle("");
       setSubject("");
       setSection("");
       setFileUrl("");
       setDescription("");
+      setSelectedFile(null);
       load(1);
     } catch (err: unknown) {
       const message =
@@ -132,13 +148,56 @@ export const TeacherStudyMaterialsPage: React.FC = () => {
                 placeholder="Section (e.g. CS-A)"
                 className="w-1/3 rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500"
               />
+              {/* Mode toggle */}
+              <div className="flex rounded-2xl border border-slate-800 bg-slate-900/80 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => { setUploadMode("link"); setSelectedFile(null); }}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-2 text-[10px] transition",
+                    uploadMode === "link"
+                      ? "bg-sky-500/10 text-sky-300"
+                      : "text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  <Link className="h-3 w-3" /> Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setUploadMode("file"); setFileUrl(""); }}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-2 text-[10px] transition",
+                    uploadMode === "file"
+                      ? "bg-sky-500/10 text-sky-300"
+                      : "text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  <FileUp className="h-3 w-3" /> File
+                </button>
+              </div>
+            </div>
+            {uploadMode === "link" ? (
               <input
                 value={fileUrl}
                 onChange={(e) => setFileUrl(e.target.value)}
                 placeholder="Public link (Drive, PDF, etc.)"
-                className="flex-1 rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500"
               />
-            </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-slate-700 bg-slate-900/80 px-3 py-2.5 text-xs text-slate-400 transition hover:border-sky-500/40 hover:text-sky-300"
+              >
+                <FileUp className="h-4 w-4" />
+                {selectedFile ? selectedFile.name : "Click to select a file from your device (max 25 MB)"}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            )}
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}

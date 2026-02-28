@@ -1,5 +1,7 @@
 const express = require("express");
 const http = require("http");
+const path = require("path");
+const fs = require("fs");
 const { Server } = require("socket.io");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -12,10 +14,19 @@ const { registerUser, removeUserSocket } = require("./socket/socketManager");
 dotenv.config();
 connectDB();
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Serve uploaded files
+app.use("/uploads", express.static(uploadsDir));
 
 // Import Routes
 const authRoutes = require("./routes/authRoutes");

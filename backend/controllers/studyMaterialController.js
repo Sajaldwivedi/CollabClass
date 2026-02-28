@@ -75,6 +75,35 @@ const getMaterials = async (req, res) => {
 };
 
 // ===============================
+// Upload Study Material (File)
+// ===============================
+const uploadMaterialFile = async (req, res) => {
+  try {
+    const { title, description, subject, section } = req.body;
+
+    if (!title || !subject || !section || !req.file) {
+      return res.status(400).json({ message: "Required fields missing (title, subject, section, file)" });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+
+    const material = await StudyMaterial.create({
+      title,
+      description,
+      subject,
+      section,
+      fileUrl,
+      uploadedBy: req.user._id,
+      uploaderRole: req.user.role,
+    });
+
+    res.status(201).json(material);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// ===============================
 // Delete Study Material
 // ===============================
 const deleteMaterial = async (req, res) => {
@@ -109,6 +138,7 @@ const deleteMaterial = async (req, res) => {
 
 module.exports = {
   uploadMaterial,
+  uploadMaterialFile,
   getMaterials,
   deleteMaterial,
 };

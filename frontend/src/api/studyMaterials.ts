@@ -39,6 +39,11 @@ export const StudyMaterialsApi = {
     fileUrl: string;
   }) => api.post<StudyMaterial>("/materials", payload),
 
+  uploadFile: (formData: FormData) =>
+    api.post<StudyMaterial>("/materials/upload-file", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }),
+
   remove: (id: string) =>
     api.delete<{ message: string }>(`/materials/${id}`)
 };

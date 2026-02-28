@@ -29,8 +29,11 @@ import { TrendPill } from "../../components/analytics/TrendPill";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
 import { CalendarRange, Clock, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/paths";
 
 export const StudentDashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const [strength, setStrength] = React.useState<StudentStrengthRow[] | null>(
     null
   );
@@ -470,6 +473,7 @@ export const StudentDashboardPage: React.FC = () => {
               variant="outline"
               size="sm"
               className="h-8 rounded-full px-3 text-[11px]"
+              onClick={() => navigate(ROUTES.studentPeerSessions)}
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
               Find mentor

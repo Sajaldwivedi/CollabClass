@@ -39,6 +39,11 @@ export const TeacherAssignmentsPage: React.FC = () => {
   const [savingDeadline, setSavingDeadline] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
+  /* ── inline confirm/grade state ── */
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+  const [gradingSubmissionId, setGradingSubmissionId] = React.useState<string | null>(null);
+  const [gradeInput, setGradeInput] = React.useState("");
+
   const loadAssignments = React.useCallback(() => {
     setLoading(true);
     setError(null);
@@ -163,10 +168,6 @@ export const TeacherAssignmentsPage: React.FC = () => {
   };
 
   const handleDeleteAssignment = async (assignment: Assignment) => {
-    const confirmed = window.confirm(
-      `Delete "${assignment.title}"? All submissions will also be removed. This cannot be undone.`
-    );
-    if (!confirmed) return;
     setDeleting(true);
     setError(null);
     try {
@@ -175,6 +176,7 @@ export const TeacherAssignmentsPage: React.FC = () => {
         setSelected(null);
         setAnalytics(null);
       }
+      setConfirmDeleteId(null);
       loadAssignments();
     } catch (err: any) {
       const message = err?.response?.data?.message ?? "Failed to delete assignment.";
@@ -383,16 +385,38 @@ export const TeacherAssignmentsPage: React.FC = () => {
               )}
 
               {/* ── Delete button ── */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-full px-3 text-[11px] text-rose-300 border-rose-500/40 hover:bg-rose-500/10"
-                onClick={() => void handleDeleteAssignment(selected)}
-                disabled={deleting}
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                {deleting ? "Deleting…" : "Delete"}
-              </Button>
+              {confirmDeleteId === selected._id ? (
+                <div className="flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/5 px-2.5 py-1">
+                  <span className="text-[10px] text-rose-200">Delete this assignment?</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 rounded-full px-2 text-[10px] text-rose-300 hover:bg-rose-500/10"
+                    onClick={() => void handleDeleteAssignment(selected)}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting…" : "Yes, delete"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 rounded-full px-2 text-[10px] text-slate-400"
+                    onClick={() => setConfirmDeleteId(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-[11px] text-rose-300 border-rose-500/40 hover:bg-rose-500/10"
+                  onClick={() => setConfirmDeleteId(selected._id)}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
           {loadingDetail || !analytics ? (
@@ -489,28 +513,69 @@ export const TeacherAssignmentsPage: React.FC = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-slate-300">
-                            Marks:{" "}
-                            {s.marks != null ? s.marks : "Not graded yet"}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 rounded-full px-2 text-[10px]"
-                            onClick={() => {
-                              const value = window.prompt(
-                                "Enter marks for this submission:",
-                                s.marks != null ? String(s.marks) : "0"
-                              );
-                              if (!value) return;
-                              const numeric = Number(value);
-                              if (Number.isNaN(numeric)) return;
-                              void handleGrade(s, numeric);
-                            }}
-                          >
-                            <PencilLine className="mr-1.5 h-3.5 w-3.5" />
-                            Grade
-                          </Button>
+                          {gradingSubmissionId === s._id ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                value={gradeInput}
+                                onChange={(e) => setGradeInput(e.target.value)}
+                                placeholder="Marks"
+                                className="w-16 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1 text-[10px] text-slate-50 outline-none focus:border-sky-500/60"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const numeric = Number(gradeInput);
+                                    if (!Number.isNaN(numeric)) {
+                                      void handleGrade(s, numeric);
+                                      setGradingSubmissionId(null);
+                                    }
+                                  }
+                                  if (e.key === "Escape") setGradingSubmissionId(null);
+                                }}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 rounded-full px-2 text-[10px] text-emerald-300"
+                                onClick={() => {
+                                  const numeric = Number(gradeInput);
+                                  if (!Number.isNaN(numeric)) {
+                                    void handleGrade(s, numeric);
+                                    setGradingSubmissionId(null);
+                                  }
+                                }}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 rounded-full px-2 text-[10px] text-slate-400"
+                                onClick={() => setGradingSubmissionId(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-[10px] text-slate-300">
+                                Marks:{" "}
+                                {s.marks != null ? s.marks : "Not graded yet"}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 rounded-full px-2 text-[10px]"
+                                onClick={() => {
+                                  setGradeInput(s.marks != null ? String(s.marks) : "0");
+                                  setGradingSubmissionId(s._id);
+                                }}
+                              >
+                                <PencilLine className="mr-1.5 h-3.5 w-3.5" />
+                                Grade
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                       <p className="mt-1 text-[10px] text-slate-300 line-clamp-3">
