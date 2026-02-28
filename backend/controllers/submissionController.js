@@ -18,24 +18,14 @@ const submitAssignment = async (req, res) => {
       return res.status(404).json({ message: "Assignment not found" });
     }
 
-    const now = new Date();
-    const deadline = new Date(assignment.deadline);
-
-    // 2️⃣ Deadline validation
-    if (now > deadline) {
+    // 2️⃣ Manual close validation — only reject if explicitly closed by teacher
+    if (assignment.status === "closed") {
       return res.status(400).json({
-        message: "Submission deadline has passed",
+        message: "Assignment has been closed by the teacher and is not accepting submissions",
       });
     }
 
-    // 3️⃣ Manual close validation
-    if (assignment.status !== "open") {
-      return res.status(400).json({
-        message: "Assignment is not accepting submissions",
-      });
-    }
-
-    // 4️⃣ Duplicate submission check
+    // 3️⃣ Duplicate submission check
     const existingSubmission = await Submission.findOne({
       assignment: assignmentId,
       student: req.user._id,
@@ -45,10 +35,13 @@ const submitAssignment = async (req, res) => {
       return res.status(400).json({ message: "Already submitted" });
     }
 
-    // 5️⃣ Late tracking logic
+    const now = new Date();
+    const deadline = new Date(assignment.deadline);
+
+    // 4️⃣ Late tracking logic
     const isLate = now > deadline;
 
-    // 6️⃣ Create submission
+    // 5️⃣ Create submission (allowed even after deadline — marked as late)
     const submission = await Submission.create({
       assignment: assignmentId,
       student: req.user._id,

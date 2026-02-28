@@ -46,6 +46,7 @@ const registerUser = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      section: user.section,
       isUniversityUser: user.isUniversityUser,
       regNo: user.regNo,
       token: generateToken(user._id),
@@ -71,6 +72,7 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        section: user.section,
         isUniversityUser: user.isUniversityUser,
         regNo: user.regNo,
         token: generateToken(user._id),
@@ -127,6 +129,7 @@ const googleAuth = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      section: user.section,
       isUniversityUser: user.isUniversityUser,
       regNo: user.regNo,
       token: generateToken(user._id),
@@ -137,8 +140,42 @@ const googleAuth = async (req, res) => {
   }
 };
 
+// ===============================
+// Update Section
+// ===============================
+const updateSection = async (req, res) => {
+  try {
+    const { section } = req.body;
+
+    if (!section || !section.trim()) {
+      return res.status(400).json({ message: "Section is required" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.section = section.trim();
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      section: user.section,
+      isUniversityUser: user.isUniversityUser,
+      regNo: user.regNo,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   googleAuth,
+  updateSection,
 };

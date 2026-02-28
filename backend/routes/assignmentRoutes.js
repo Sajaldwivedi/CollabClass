@@ -6,6 +6,8 @@ const {
   getAssignments,
   getAssignmentById,
   closeAssignment,
+  updateDeadline,
+  deleteAssignment,
   getAssignmentAnalytics,
 } = require("../controllers/assignmentController");
 
@@ -27,6 +29,22 @@ router.put(
   protect,
   authorizeRoles("teacher"),
   closeAssignment
+);
+
+// Teacher updates assignment deadline
+router.patch(
+  "/:id/deadline",
+  protect,
+  authorizeRoles("teacher"),
+  updateDeadline
+);
+
+// Teacher deletes assignment
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("teacher"),
+  deleteAssignment
 );
 
 // Teacher analytics

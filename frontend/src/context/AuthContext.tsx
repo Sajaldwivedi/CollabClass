@@ -34,6 +34,7 @@ interface AuthContextValue {
   }) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
+  updateSection: (section: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -199,9 +200,27 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     setToken(null);
   }, []);
 
+  const updateSection = useCallback(
+    async (section: string) => {
+      const res = await api.patch<Omit<BackendAuthResponse, "token">>("/auth/section", { section });
+      const updatedUser: AuthUser = {
+        id: res.data._id,
+        name: res.data.name,
+        email: res.data.email,
+        role: res.data.role,
+        section: res.data.section,
+        isUniversityUser: res.data.isUniversityUser,
+        regNo: res.data.regNo,
+      };
+      setUser(updatedUser);
+      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    },
+    []
+  );
+
   const value = useMemo(
-    () => ({ user, token, loading, login, register, loginWithGoogle, logout }),
-    [user, token, loading, login, register, loginWithGoogle, logout]
+    () => ({ user, token, loading, login, register, loginWithGoogle, logout, updateSection }),
+    [user, token, loading, login, register, loginWithGoogle, logout, updateSection]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -28,7 +28,7 @@ import { TrendPill } from "../../components/analytics/TrendPill";
 import { ProgressBar } from "../../components/analytics/ProgressBar";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../utils/cn";
-import { CalendarRange, ChevronRight, Clock, Link2, Sparkles, Trophy, Users, X, Search, ArrowUpDown } from "lucide-react";
+import { CalendarRange, ChevronRight, Clock, Link2, Sparkles, Trophy, Users, X, Search, ArrowUpDown, AlertTriangle, BookOpen, MessageCircle, Target } from "lucide-react";
 
 export const TeacherDashboardPage: React.FC = () => {
   const [riskStudents, setRiskStudents] = React.useState<RiskStudent[]>([]);
@@ -46,6 +46,7 @@ export const TeacherDashboardPage: React.FC = () => {
   const [studentSort, setStudentSort] = React.useState<"name" | "risk" | "marks" | "engagement">("name");
   const [studentSortAsc, setStudentSortAsc] = React.useState(true);
   const [directoryFilter, setDirectoryFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
+  const [planStudent, setPlanStudent] = React.useState<RiskStudent | null>(null);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -171,6 +172,192 @@ export const TeacherDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {/* ─── Student Plan Modal ─── */}
+      {planStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative mx-4 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950 shadow-2xl"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold",
+                  planStudent.riskBand === "high"
+                    ? "bg-rose-500/15 text-rose-300"
+                    : planStudent.riskBand === "medium"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "bg-emerald-500/15 text-emerald-300"
+                )}>
+                  {planStudent.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-50">
+                    Intervention plan — {planStudent.name}
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    ID: {planStudent.studentId.slice(0, 12)}…
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPlanStudent(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto scroll-thin px-6 py-4 space-y-4">
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold text-slate-50">{planStudent.riskIndex.toFixed(0)}</p>
+                  <p className="text-[10px] text-slate-400">Risk Index</p>
+                </div>
+                <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold text-slate-50">{planStudent.avgMarks.toFixed(1)}</p>
+                  <p className="text-[10px] text-slate-400">Avg Marks</p>
+                </div>
+                <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold text-slate-50">{planStudent.engagementScore.toFixed(0)}%</p>
+                  <p className="text-[10px] text-slate-400">Engagement</p>
+                </div>
+              </div>
+
+              {/* Risk Assessment */}
+              <div className="rounded-2xl border border-slate-800/70 bg-slate-900/50 px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className={cn(
+                    "h-4 w-4",
+                    planStudent.riskBand === "high" ? "text-rose-400" : planStudent.riskBand === "medium" ? "text-amber-400" : "text-emerald-400"
+                  )} />
+                  <p className="text-xs font-medium text-slate-50">Risk assessment</p>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {planStudent.riskBand === "high"
+                    ? `${planStudent.name} is in the high-risk zone with a risk index of ${planStudent.riskIndex.toFixed(0)}. Immediate intervention is recommended — consider one-on-one sessions, peer mentoring, and closer assignment tracking.`
+                    : planStudent.riskBand === "medium"
+                    ? `${planStudent.name} shows moderate risk signals (index ${planStudent.riskIndex.toFixed(0)}). Monitor closely over the next 2 weeks and consider pairing with a high-performing peer mentor.`
+                    : `${planStudent.name} is performing well with a low risk index of ${planStudent.riskIndex.toFixed(0)}. Continue monitoring and consider them as a peer mentor for at-risk students.`
+                  }
+                </p>
+              </div>
+
+              {/* Recommended Actions */}
+              <div>
+                <p className="text-xs font-medium text-slate-50 mb-2">Recommended actions</p>
+                <div className="space-y-2">
+                  {planStudent.riskBand === "high" && (
+                    <>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-rose-500/5 border border-rose-500/20 px-3 py-2.5">
+                        <Target className="h-4 w-4 text-rose-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-rose-200">Academic support</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Schedule a direct one-on-one session to identify specific knowledge gaps and create a targeted study plan.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-sky-500/5 border border-sky-500/20 px-3 py-2.5">
+                        <Users className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-sky-200">Peer mentoring</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Pair with a top-performing student via the Peer Sessions page for regular study support.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 px-3 py-2.5">
+                        <MessageCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-amber-200">Engagement boost</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Encourage participation in doubt discussions — replying to threads can significantly improve engagement score.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {planStudent.riskBand === "medium" && (
+                    <>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 px-3 py-2.5">
+                        <Target className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-amber-200">Monitor & check-in</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Keep a close watch for the next 2 weeks. If risk increases, escalate to academic support.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-sky-500/5 border border-sky-500/20 px-3 py-2.5">
+                        <BookOpen className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-sky-200">Study materials</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Share targeted study resources for weak subjects to help build confidence and close gaps.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {planStudent.riskBand === "low" && (
+                    <>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 px-3 py-2.5">
+                        <Users className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-emerald-200">Mentor candidate</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">This student could be an excellent peer mentor. Consider pairing them with at-risk students.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-sky-500/5 border border-sky-500/20 px-3 py-2.5">
+                        <Sparkles className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-medium text-sky-200">Challenge & grow</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Provide advanced problems or responsibilities to maintain engagement and growth trajectory.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Trend + Submissions */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400">Trend</p>
+                  <TrendPill status={planStudent.trendStatus} />
+                </div>
+                <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400">Submissions</p>
+                  <p className="text-sm font-semibold text-slate-50">{planStudent.totalSubmissions}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-900/80 px-3 py-2.5">
+                <p className="text-[10px] text-slate-400 mb-1">Late ratio</p>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      planStudent.lateRatio > 0.5 ? "bg-rose-400" : planStudent.lateRatio > 0.25 ? "bg-amber-400" : "bg-emerald-400"
+                    )}
+                    style={{ width: `${Math.min(planStudent.lateRatio * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-slate-400">{(planStudent.lateRatio * 100).toFixed(0)}% of submissions were late</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-6 py-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full px-4 text-[11px]"
+                onClick={() => setPlanStudent(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* ─── Student Directory Modal ─── */}
       {showStudentDirectory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -491,6 +678,7 @@ export const TeacherDashboardPage: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         className="h-7 rounded-full px-2 text-[10px]"
+                        onClick={() => setPlanStudent(s)}
                       >
                         Plan
                         <ChevronRight className="ml-1 h-3 w-3" />

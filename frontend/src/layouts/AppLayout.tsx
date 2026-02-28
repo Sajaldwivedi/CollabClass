@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Bell,
@@ -11,7 +11,10 @@ import {
   MoonStar,
   BookOpen,
   Share2,
-  FileText
+  FileText,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTheme } from "../theme/ThemeProvider";
@@ -129,9 +132,26 @@ const NotificationBell: React.FC = () => {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const navItems = navItemsByRole[role];
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, updateSection } = useAuth();
+  const [editingSection, setEditingSection] = React.useState(false);
+  const [sectionInput, setSectionInput] = React.useState(user?.section ?? "");
+  const [savingSection, setSavingSection] = React.useState(false);
+
+  const handleSaveSection = async () => {
+    if (!sectionInput.trim()) return;
+    setSavingSection(true);
+    try {
+      await updateSection(sectionInput.trim());
+      setEditingSection(false);
+    } catch {
+      // silently fail
+    } finally {
+      setSavingSection(false);
+    }
+  };
 
   return (
     <div className="page-shell flex h-screen overflow-hidden">
@@ -190,9 +210,50 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
                     <p className="text-[11px] font-medium leading-tight">
                       {user.name}
                     </p>
-                    <p className="text-[10px] text-slate-400 capitalize">
-                      {user.role} · {user.section ?? "Global"}
-                    </p>
+                    {editingSection ? (
+                      <div className="mt-1 flex items-center gap-1">
+                        <input
+                          value={sectionInput}
+                          onChange={(e) => setSectionInput(e.target.value)}
+                          placeholder="Enter section"
+                          className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-50 outline-none focus:border-emerald-500/70"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void handleSaveSection();
+                            if (e.key === "Escape") setEditingSection(false);
+                          }}
+                        />
+                        <button
+                          onClick={() => void handleSaveSection()}
+                          disabled={savingSection}
+                          className="flex h-4 w-4 items-center justify-center rounded-md text-emerald-400 hover:text-emerald-300"
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => setEditingSection(false)}
+                          className="flex h-4 w-4 items-center justify-center rounded-md text-slate-400 hover:text-slate-300"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 capitalize flex items-center gap-1">
+                        {user.role} · {user.section ?? "No section"}
+                        {user.role === "teacher" && (
+                          <button
+                            onClick={() => {
+                              setSectionInput(user.section ?? "");
+                              setEditingSection(true);
+                            }}
+                            className="ml-0.5 text-slate-500 hover:text-slate-300 transition"
+                            title="Change section"
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -244,7 +305,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
             </div>
           <div className="flex items-center gap-3">
             <NotificationBell />
-            <Button variant="outline" size="sm" className="hidden md:inline-flex">
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden md:inline-flex"
+              onClick={() =>
+                navigate(
+                  role === "teacher"
+                    ? ROUTES.teacherPeerSessions
+                    : ROUTES.studentPeerSessions
+                )
+              }
+            >
               <Users className="mr-2 h-3.5 w-3.5" />
               {role === "teacher" ? "Mentorship graph" : "My mentors"}
             </Button>

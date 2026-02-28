@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import {
   DoubtsApi,
@@ -20,6 +20,11 @@ import {
   Sparkles,
   XCircle,
   Trash2,
+  Plus,
+  Clock,
+  ChevronDown,
+  Reply,
+  User,
 } from "lucide-react";
 
 const formatContentToHtml = (content: string) => {
