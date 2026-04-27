@@ -34,6 +34,7 @@ const navItemsByRole: Record<
 > = {
   teacher: [
     { label: "Overview", to: ROUTES.teacherDashboard, icon: BarChart3 },
+    { label: "Tests", to: ROUTES.teacherTests, icon: Check },
     { label: "Assignments", to: ROUTES.teacherAssignments, icon: FileText },
     { label: "Doubts", to: ROUTES.teacherDoubts, icon: MessageCircle },
     { label: "Study Materials", to: ROUTES.teacherMaterials, icon: BookOpen },
@@ -45,6 +46,7 @@ const navItemsByRole: Record<
       to: ROUTES.studentDashboard,
       icon: GraduationCap
     },
+    { label: "Tests", to: ROUTES.studentTests, icon: Check },
     { label: "Assignments", to: ROUTES.studentAssignments, icon: FileText },
     { label: "Doubts", to: ROUTES.studentDoubts, icon: MessageCircle },
     { label: "Study Materials", to: ROUTES.studentMaterials, icon: BookOpen },
@@ -139,6 +141,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
   const [editingSection, setEditingSection] = React.useState(false);
   const [sectionInput, setSectionInput] = React.useState(user?.section ?? "");
   const [savingSection, setSavingSection] = React.useState(false);
+  const showDashboardHero = pathname === ROUTES.teacherDashboard || pathname === ROUTES.studentDashboard;
 
   const handleSaveSection = async () => {
     if (!sectionInput.trim()) return;
@@ -292,7 +295,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
       </aside>
 
       <main className="flex-1 overflow-y-auto scroll-thin px-6 py-5">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        {showDashboardHero && (
+          <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">
                 {role === "teacher" ? "Teaching Intelligence" : "Learning Graph"}
@@ -303,25 +307,26 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ role }) => {
                   : "Your learning fingerprint"}
               </h1>
             </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden md:inline-flex"
-              onClick={() =>
-                navigate(
-                  role === "teacher"
-                    ? ROUTES.teacherPeerSessions
-                    : ROUTES.studentPeerSessions
-                )
-              }
-            >
-              <Users className="mr-2 h-3.5 w-3.5" />
-              {role === "teacher" ? "Mentorship graph" : "My mentors"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                onClick={() =>
+                  navigate(
+                    role === "teacher"
+                      ? ROUTES.teacherPeerSessions
+                      : ROUTES.studentPeerSessions
+                  )
+                }
+              >
+                <Users className="mr-2 h-3.5 w-3.5" />
+                {role === "teacher" ? "Mentorship graph" : "My mentors"}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid gap-4">
           <Outlet />

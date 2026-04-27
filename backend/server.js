@@ -36,6 +36,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const studyMaterialRoutes = require("./routes/studyMaterialRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const peerSessionRoutes = require("./routes/peerSessionRoutes");
+const testRoutes = require("./routes/testRoutes");
 
 // Use Routes
 app.use("/api/auth", authRoutes);
@@ -47,6 +48,7 @@ app.use("/api/doubts", require("./routes/doubtRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/peer-sessions", peerSessionRoutes);
+app.use("/api/tests", testRoutes);
 
 app.get("/", (req, res) => {
   res.send("CollabClass API Running...");

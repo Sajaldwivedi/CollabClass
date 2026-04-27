@@ -26,6 +26,9 @@ const TeacherAssignmentsPage = React.lazy(() =>
     default: m.TeacherAssignmentsPage
   }))
 );
+const TeacherTestsPage = React.lazy(() =>
+  import("./pages/teacher/TestsPage").then((m) => ({ default: m.TeacherTestsPage }))
+);
 const StudentDashboardPage = React.lazy(() =>
   import("./pages/student/StudentDashboardPage").then((m) => ({
     default: m.StudentDashboardPage
@@ -45,6 +48,12 @@ const StudentAssignmentsPage = React.lazy(() =>
   import("./pages/student/AssignmentsPage").then((m) => ({
     default: m.StudentAssignmentsPage
   }))
+);
+const StudentTestsPage = React.lazy(() =>
+  import("./pages/student/TestsPage").then((m) => ({ default: m.StudentTestsPage }))
+);
+const StudentTestAttemptPage = React.lazy(() =>
+  import("./pages/student/TestAttemptPage").then((m) => ({ default: m.StudentTestAttemptPage }))
 );
 const DoubtDiscussionPage = React.lazy(() =>
   import("./pages/shared/DoubtDiscussionPage2").then((m) => ({
@@ -112,6 +121,7 @@ export const App: React.FC = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboardPage />} />
           <Route path="assignments" element={<TeacherAssignmentsPage />} />
+          <Route path="tests" element={<TeacherTestsPage />} />
           <Route path="doubts" element={<DoubtDiscussionPage />} />
           <Route path="study-materials" element={<TeacherStudyMaterialsPage />} />
           <Route path="peer-sessions" element={<TeacherPeerSessionsPage />} />
@@ -127,6 +137,8 @@ export const App: React.FC = () => {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<StudentDashboardPage />} />
+          <Route path="tests" element={<StudentTestsPage />} />
+          <Route path="tests/attempt/:testId" element={<StudentTestAttemptPage />} />
           <Route path="assignments" element={<StudentAssignmentsPage />} />
           <Route path="doubts" element={<DoubtDiscussionPage />} />
           <Route path="study-materials" element={<StudentStudyMaterialsPage />} />
